@@ -43,9 +43,7 @@
     </table>
 
     <script>
-        // ⚠️ PASTE YOUR COPIED GOOGLE SHEETS CSV LINK HERE
-        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB53aTMBF5L3BFe-aELn_AfCMwmF6GilxzgoJarCFI_U47tmG1N9SBEEfDimF6h4IzCHyHrsUG8agL/pub?gid=0&single=true&output=csv";
-
+        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB53aTMBF5L3BFe-aELn_AfCMwmF6GilxzgoJarCFI_U47tmG1N9SBEEfDimF6h4IzCHyHrsUG8agL/pub?gid=0&single=true&output=csv" + "&t=" + new Date().getTime();
         async function fetchGameData() {
             try {
                 const response = await fetch(SHEET_CSV_URL);
