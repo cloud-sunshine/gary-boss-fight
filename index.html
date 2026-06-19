@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<!DOCTYPE html><html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Defeat Gary - Boss Leaderboard</title>
@@ -15,9 +13,8 @@
         tr:nth-child(even) { background-color: #282828; }
         .winner { background-color: #f1c40f !important; color: black; font-weight: bold; }
         .winner td { border-color: #f1c40f; }
-    </style>
-</head>
-<body>
+        #error-msg { color: #e74c3c; margin: 10px; font-weight: bold; display: none; }
+    </style></head><body>
 
     <h1>💥 DEFEAT GARY 💥</h1>
     
@@ -27,6 +24,8 @@
             <div id="hp-fill" class="hp-bar-fill"></div>
         </div>
     </div>
+
+    <div id="error-msg">Connecting to Google Sheets...</div>
 
     <h2>Leaderboard</h2>
     <table class="leaderboard-table">
@@ -48,31 +47,47 @@
 
     <script>
         const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB53aTMBF5L3BFe-aELn_AfCMwmF6GilxzgoJarCFI_U47tmG1N9SBEEfDimF6h4IzCHyHrsUG8agL/pub?gid=0&single=true&output=csv";
+        
+        // Track the current UI health to prevent the rubberbanding jump
+        let currentLocalHP = 1000;
+        let isFirstLoad = true;
 
         async function fetchGameData() {
             try {
-                // This clean line automatically handles the timestamp cache bypass safely
-                const finalUrl = BASE_URL + "&t=" + new Date().getTime();
-                const response = await fetch(finalUrl);
-                const data = await response.text();
+                // Smart cache bypass: checks if link already contains a '?' character
+                const separator = BASE_URL.includes('?') ? '&' : '?';
+                const finalUrl = BASE_URL + separator + "cacheBust=" + new Date().getTime();
                 
+                const response = await fetch(finalUrl);
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const data = await response.text();
                 if (!data || data.trim() === "") return;
 
+                document.getElementById("error-msg").style.display = "none";
+
+                // Parse rows cleanly
                 const rows = data.split(/\r?\n/).map(row => row.split(","));
                 
-                // Read Cell B2 safely
-                if (rows[1] && rows[1][1]) {
+                // Process Boss HP (Cell B2 -> Row index 1, Column index 1)
+                if (rows[1] && rows[1][1] !== undefined) {
                     let hpRaw = rows[1][1].replace(/[^0-9.-]+/g, "");
-                    let currentHP = parseInt(hpRaw, 10);
+                    let fetchedHP = parseInt(hpRaw, 10);
                     
-                    if (isNaN(currentHP)) currentHP = 1000;
-                    if (currentHP < 0) currentHP = 0;
-                    if (currentHP > 1000) currentHP = 1000;
+                    if (isNaN(fetchedHP)) fetchedHP = 1000;
+                    if (fetchedHP < 0) fetchedHP = 0;
+                    if (fetchedHP > 1000) fetchedHP = 1000;
 
-                    updateBossUI(currentHP);
+                    // FIX: Only update UI if it's the initial load, OR if Gary actually lost health.
+                    // This blocks older cached sheets data from "healing" Gary back up.
+                    if (isFirstLoad || fetchedHP <= currentLocalHP) {
+                        currentLocalHP = fetchedHP;
+                        updateBossUI(currentLocalHP);
+                        isFirstLoad = false;
+                    }
                 }
 
-                // Read Rows 5 to 9 safely
+                // Process Teams Leaderboard (Rows 5 to 9 -> Row indexes 4 to 8)
                 if (rows.length >= 9) {
                     const teamRows = rows.slice(4, 9); 
                     updateLeaderboardUI(teamRows);
@@ -80,6 +95,9 @@
 
             } catch (error) {
                 console.error("Error loading data:", error);
+                const errMsg = document.getElementById("error-msg");
+                errMsg.innerText = "⚠️ Connection Error. Checking for new data updates...";
+                errMsg.style.display = "block";
             }
         }
 
@@ -129,8 +147,9 @@
             tbody.innerHTML = htmlContent;
         }
 
+        // Run immediately on page load
         fetchGameData();
-        setInterval(fetchGameData, 5000);
-    </script>
-</body>
-</html>
+        
+        // Check for updates every 15 seconds (15000ms) instead of 5 to give Google Sheets time to export
+        setInterval(fetchGameData, 15000);
+    </script></body></html>
