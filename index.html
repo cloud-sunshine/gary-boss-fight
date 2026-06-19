@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defeat Gary - Boss Leaderboard</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #1a1a1a; color: white; text-align: center; }
+        .boss-container { margin: 40px auto; max-width: 500px; }
+        .hp-bar-bg { background: #444; width: 100%; height: 30px; border-radius: 15px; overflow: hidden; margin-top: 10px; }
+        .hp-bar-fill { background: #2ecc71; width: 100%; height: 100%; transition: width 0.5s ease, background-color 0.5s ease; }
+        .leaderboard-table { margin: 20px auto; width: 80%; border-collapse: collapse; }
+        th, td { padding: 12px; border: 1px solid #444; }
+        th { background-color: #333; }
+        .winner { background-color: #f1c40f !important; color: black; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>💥 DEFEAT GARY 💥</h1>
+    
+    <div class="boss-container">
+        <h2>Boss HP: <span id="boss-hp-text">1000</span> / 1000</h2>
+        <div class="hp-bar-bg">
+            <div id="hp-fill" class="hp-bar-fill"></div>
+        </div>
+    </div>
+
+    <h2>Leaderboard</h2>
+    <table class="leaderboard-table" id="teams-table">
+        <thead>
+            <tr>
+                <th>Team</th>
+                <th>Phase 1</th>
+                <th>Phase 2</th>
+                <th>Phase 3</th>
+                <th>Total Points</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+            <!-- Data will be loaded automatically from Google Sheets here -->
+        </tbody>
+    </table>
+
+    <script>
+        // ⚠️ PASTE YOUR COPIED GOOGLE SHEETS CSV LINK HERE
+        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB53aTMBF5L3BFe-aELn_AfCMwmF6GilxzgoJarCFI_U47tmG1N9SBEEfDimF6h4IzCHyHrsUG8agL/pub?gid=0&single=true&output=csv";
+
+        async function fetchGameData() {
+            try {
+                const response = await fetch(SHEET_CSV_URL);
+                const data = await response.text();
+                
+                // Parse CSV rows into arrays
+                const rows = data.split("\n").map(row => row.split(","));
+                
+                // Extract Boss Current HP from cell B2 (Row 2, Column B)
+                const currentHP = parseInt(rows[1][1]);
+                updateBossUI(currentHP);
+
+                // Extract Teams Data (Rows 5 to 9 on your Master Sheet)
+                // Columns: A=Team Name, B=P1, C=P2, D=P3, E=Total Points
+                const teamRows = rows.slice(4, 9); 
+                updateLeaderboardUI(teamRows);
+
+            } catch (error) {
+                console.error("Error loading data from Google Sheets:", error);
+            }
+        }
+
+        function updateBossUI(hp) {
+            document.getElementById("boss-hp-text").innerText = hp;
+            const hpPercent = (hp / 1000) * 100;
+            const hpFill = document.getElementById("hp-fill");
+            hpFill.style.width = `${hpPercent}%`;
+
+            // Change HP bar color dynamically based on health thresholds
+            if (hp <= 200) hpFill.style.backgroundColor = "#e74c3c"; // Red
+            else if (hp <= 500) hpFill.style.backgroundColor = "#f1c40f"; // Yellow
+            else hpFill.style.backgroundColor = "#2ecc71"; // Green
+        }
+
+        function updateLeaderboardUI(teams) {
+            const tbody = document.getElementById("leaderboard-body");
+            tbody.innerHTML = ""; // Clear old data
+
+            // Find max score to apply the winning highlight styles
+            const scores = teams.map(t => parseInt(t[4]));
+            const maxScore = Math.max(...scores);
+
+            teams.forEach(team => {
+                const isWinner = parseInt(team[4]) === maxScore && maxScore > 0;
+                const rowHTML = `
+                    <tr class="${isWinner ? 'winner' : ''}">
+                        <td>${team[0]}</td>
+                        <td>${team[1]}</td>
+                        <td>${team[2]}</td>
+                        <td>${team[3]}</td>
+                        <td>${team[4]}</td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML("beforeend", rowHTML);
+            });
+        }
+
+        // Auto-refresh every 5 seconds so your display stays live!
+        fetchGameData();
+        setInterval(fetchGameData, 5000);
+    </script>
+</body>
+</html>
