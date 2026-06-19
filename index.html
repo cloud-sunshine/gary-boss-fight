@@ -1,33 +1,86 @@
-<script>
-        // Paste your Google Sheets CSV link here
-        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB53aTMBF5L3BFe-aELn_AfCMwmF6GilxzgoJarCFI_U47tmG1N9SBEEfDimF6h4IzCHyHrsUG8agL/pub?gid=0&single=true&output=csv" + "&t=" + new Date().getTime();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defeat Gary - Boss Leaderboard</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #1a1a1a; color: white; text-align: center; margin: 0; padding: 20px; }
+        .boss-container { margin: 40px auto; max-width: 500px; background: #2a2a2a; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .hp-bar-bg { background: #444; width: 100%; height: 30px; border-radius: 15px; overflow: hidden; margin-top: 15px; border: 2px solid #555; }
+        .hp-bar-fill { background: #2ecc71; width: 100%; height: 100%; transition: width 0.4s ease, background-color 0.4s ease; }
+        .leaderboard-table { margin: 30px auto; width: 90%; max-width: 800px; border-collapse: collapse; background: #222; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 14px; border: 1px solid #333; text-align: center; }
+        th { background-color: #333; color: #00ffcc; text-transform: uppercase; letter-spacing: 1px; }
+        tr:nth-child(even) { background-color: #282828; }
+        .winner { background-color: #f1c40f !important; color: black; font-weight: bold; }
+        .winner td { border-color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+    <h1>💥 DEFEAT GARY 💥</h1>
+    
+    <div class="boss-container">
+        <h2>Boss HP: <span id="boss-hp-text">1000</span> / 1000</h2>
+        <div class="hp-bar-bg">
+            <div id="hp-fill" class="hp-bar-fill"></div>
+        </div>
+    </div>
+
+    <h2>Leaderboard</h2>
+    <table class="leaderboard-table">
+        <thead>
+            <tr>
+                <th>Team</th>
+                <th>Phase 1</th>
+                <th>Phase 2</th>
+                <th>Phase 3</th>
+                <th>Total Points</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+            <tr>
+                <td colspan="5">Loading game data...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        // ⚠️ PASTE ONLY YOUR COPIED GOOGLE SHEETS URL INSIDE THE QUOTES BELOW
+        const BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB53aTMBF5L3BFe-aELn_AfCMwmF6GilxzgoJarCFI_U47tmG1N9SBEEfDimF6h4IzCHyHrsUG8agL/pub?gid=0&single=true&output=csv";
 
         async function fetchGameData() {
             try {
-                const response = await fetch(SHEET_CSV_URL);
+                // This clean line automatically handles the timestamp cache bypass safely
+                const finalUrl = BASE_URL + "&t=" + new Date().getTime();
+                const response = await fetch(finalUrl);
                 const data = await response.text();
                 
-                // Parse CSV into clean rows and clean up weird whitespace/linebreaks
+                if (!data || data.trim() === "") return;
+
                 const rows = data.split(/\r?\n/).map(row => row.split(","));
                 
-                // TARGET CELL B2 (Row index 1, Column index 1)
-                // Clean the data: remove whitespace or text artifacts to force a number
-                let hpRaw = rows[1][1].replace(/[^0-9.-]+/g, "");
-                let currentHP = parseInt(hpRaw, 10);
-                
-                // Fallback safeguards so it never accidentally drops to 0 mid-game
-                if (isNaN(currentHP)) currentHP = 1000;
-                if (currentHP < 0) currentHP = 0;
-                if (currentHP > 1000) currentHP = 1000;
+                // Read Cell B2 safely
+                if (rows[1] && rows[1][1]) {
+                    let hpRaw = rows[1][1].replace(/[^0-9.-]+/g, "");
+                    let currentHP = parseInt(hpRaw, 10);
+                    
+                    if (isNaN(currentHP)) currentHP = 1000;
+                    if (currentHP < 0) currentHP = 0;
+                    if (currentHP > 1000) currentHP = 1000;
 
-                updateBossUI(currentHP);
+                    updateBossUI(currentHP);
+                }
 
-                // TARGET ROWS 5 TO 9 (Row indexes 4 through 8)
-                const teamRows = rows.slice(4, 9); 
-                updateLeaderboardUI(teamRows);
+                // Read Rows 5 to 9 safely
+                if (rows.length >= 9) {
+                    const teamRows = rows.slice(4, 9); 
+                    updateLeaderboardUI(teamRows);
+                }
 
             } catch (error) {
-                console.error("Error loading data from Google Sheets:", error);
+                console.error("Error loading data:", error);
             }
         }
 
@@ -35,19 +88,17 @@
             document.getElementById("boss-hp-text").innerText = hp;
             const hpPercent = (hp / 1000) * 100;
             const hpFill = document.getElementById("hp-fill");
-            hpFill.style.width = `${hpPercent}%`;
+            hpFill.style.width = hpPercent + "%";
 
-            // Dynamic color threshold shifts
-            if (hp <= 200) hpFill.style.backgroundColor = "#e74c3c"; // Red
-            else if (hp <= 500) hpFill.style.backgroundColor = "#f1c40f"; // Yellow
-            else hpFill.style.backgroundColor = "#2ecc71"; // Green
+            if (hp <= 200) hpFill.style.backgroundColor = "#e74c3c"; 
+            else if (hp <= 500) hpFill.style.backgroundColor = "#f1c40f"; 
+            else hpFill.style.backgroundColor = "#2ecc71"; 
         }
 
         function updateLeaderboardUI(teams) {
             const tbody = document.getElementById("leaderboard-body");
-            tbody.innerHTML = ""; 
+            let htmlContent = "";
 
-            // Safely parse out total scores from Column E (index 4)
             const scores = teams.map(t => {
                 let scoreRaw = t[4] ? t[4].replace(/[^0-9.-]+/g, "") : "0";
                 let num = parseInt(scoreRaw, 10);
@@ -60,13 +111,12 @@
                 const currentTeamScore = scores[index];
                 const isWinner = currentTeamScore === maxScore && maxScore > 0;
                 
-                // Safely handle missing items or offsets gracefully
-                const name = team[0] || `Group ${index + 1}`;
+                const name = team[0] || ("Group " + (index + 1));
                 const p1 = team[1] || "0";
                 const p2 = team[2] || "0";
                 const p3 = team[3] || "0";
 
-                const rowHTML = `
+                htmlContent += `
                     <tr class="${isWinner ? 'winner' : ''}">
                         <td><strong>${name}</strong></td>
                         <td>${p1}</td>
@@ -75,11 +125,13 @@
                         <td><strong>${currentTeamScore}</strong></td>
                     </tr>
                 `;
-                tbody.insertAdjacentHTML("beforeend", rowHTML);
             });
+
+            tbody.innerHTML = htmlContent;
         }
 
-        // Run immediately on boot and cycle strictly every 5 seconds
         fetchGameData();
         setInterval(fetchGameData, 5000);
     </script>
+</body>
+</html>
