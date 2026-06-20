@@ -5,6 +5,23 @@
     <style>
         body { font-family: 'Arial', sans-serif; background: #1a1a1a; color: white; text-align: center; margin: 0; padding: 20px; }
         .boss-container { margin: 40px auto; max-width: 500px; background: #2a2a2a; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        
+        /* Styling for Gary's Portrait Container */
+        .boss-avatar-container {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 15px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Make sure the image scales down nicely without breaking the layout */
+        .boss-avatar-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
         .hp-bar-bg { background: #444; width: 100%; height: 30px; border-radius: 15px; overflow: hidden; margin-top: 15px; border: 2px solid #555; }
         .hp-bar-fill { background: #2ecc71; width: 100%; height: 100%; transition: width 0.4s ease, background-color 0.4s ease; }
         .leaderboard-table { margin: 30px auto; width: 90%; max-width: 800px; border-collapse: collapse; background: #222; border-radius: 8px; overflow: hidden; }
@@ -19,6 +36,11 @@
     <h1>💥 DEFEAT GARY 💥</h1>
     
     <div class="boss-container">
+        <!-- ADDED: Container for Gary's evolving picture -->
+        <div class="boss-avatar-container">
+            <img id="gary-image" src="" alt="Gary the Boss">
+        </div>
+
         <h2>Boss HP: <span id="boss-hp-text">1000</span> / 1000</h2>
         <div class="hp-bar-bg">
             <div id="hp-fill" class="hp-bar-fill"></div>
@@ -49,9 +71,13 @@
         // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
         const BASE_URL = "https://script.google.com/macros/s/AKfycbxVN-UxdUnAcug88FPclPVR0LIJ_rmBR45jZyVzibW9YweWG1MGpCG8rmUdCR_PFkCz/exec";
 
+        // ⚠️ PASTE YOUR THREE GARY IMAGE LINKS HERE
+        const GARY_STAGE_1 = "gary1.jpg"; // 1000 ~ 501 HP
+        const GARY_STAGE_2 = "gary2.jpg"; // 500 ~ 101 HP
+        const GARY_STAGE_3 = "gary3.jpg"; // 100 ~ 0 HP
+
         async function fetchGameData() {
             try {
-                // Fetch direct real-time JSON matrix from your Apps Script macro
                 const response = await fetch(BASE_URL);
                 if (!response.ok) throw new Error("Network response was not ok");
                 
@@ -60,9 +86,7 @@
 
                 document.getElementById("error-msg").style.display = "none";
                 
-                // Process Boss HP (Cell B2 -> Row index 1, Column index 1)
                 if (rows[1] && rows[1][1] !== undefined) {
-                    // Convert to string safely in case it arrives as a pure number format
                     let hpRaw = rows[1][1].toString().replace(/[^0-9.-]+/g, "");
                     let currentHP = parseInt(hpRaw, 10);
                     
@@ -73,7 +97,6 @@
                     updateBossUI(currentHP);
                 }
 
-                // Process Teams Leaderboard (Rows 5 to 9 -> Row indexes 4 to 8)
                 if (rows.length >= 9) {
                     const teamRows = rows.slice(4, 9); 
                     updateLeaderboardUI(teamRows);
@@ -91,11 +114,26 @@
             document.getElementById("boss-hp-text").innerText = hp;
             const hpPercent = (hp / 1000) * 100;
             const hpFill = document.getElementById("hp-fill");
+            const garyImgElement = document.getElementById("gary-image");
+            
             hpFill.style.width = hpPercent + "%";
 
-            if (hp <= 200) hpFill.style.backgroundColor = "#e74c3c"; 
-            else if (hp <= 500) hpFill.style.backgroundColor = "#f1c40f"; 
-            else hpFill.style.backgroundColor = "#2ecc71"; 
+            // LOGIC FOR CHANGING GARY'S STAGE IMAGE AND HP BAR COLORS
+            if (hp <= 100) {
+                // Stage 3: Total Enraged (Below 100 HP)
+                garyImgElement.src = GARY_STAGE_3;
+                hpFill.style.backgroundColor = "#e74c3c"; 
+            } 
+            else if (hp <= 500) {
+                // Stage 2: Getting Pissed (500 ~ 101 HP)
+                garyImgElement.src = GARY_STAGE_2;
+                hpFill.style.backgroundColor = "#f1c40f"; 
+            } 
+            else {
+                // Stage 1: Slightly Mad (1000 ~ 501 HP)
+                garyImgElement.src = GARY_STAGE_1;
+                hpFill.style.backgroundColor = "#2ecc71"; 
+            }
         }
 
         function updateLeaderboardUI(teams) {
@@ -133,10 +171,6 @@
             tbody.innerHTML = htmlContent;
         }
 
-        // Run immediately on page load
         fetchGameData();
-        
-        // Because JSON bypasses the cache entirely, we can safely drop this back 
-        // to a responsive 4-second update cycle without any rubberbanding.
         setInterval(fetchGameData, 4000);
     </script></body></html>
